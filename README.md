@@ -1,16 +1,10 @@
-# bodycontest
+# 보디빌딩 대회일정 App
 
-A new Flutter project.
+보디빌딩 대회일정은 한국에서 계최되는 내츄럴 시합 일정들을 한 눈에 볼 수 있습니다.
 
-## Getting Started
 
-This project is a starting point for a Flutter application.
+# Support Information
+궁금한 점이나 도움이 필요하시면 언제든지 연락주세요.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- **Email**: [123imyhnam123@gmail.com](mailto:123imyhnam123@gmail.com)
+- **Phone**: +82-10-5955-9775
