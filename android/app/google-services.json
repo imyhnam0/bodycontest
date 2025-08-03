@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "494139613008",
+    "project_id": "bodycontest",
+    "storage_bucket": "bodycontest.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:494139613008:android:44ba25ab552f6cda3fd655",
+        "android_client_info": {
+          "package_name": "com.example.bodycontest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBddh7-8upjzUj3FWhTPRKiLi15nJUZLjc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
