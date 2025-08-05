@@ -6,12 +6,11 @@ import 'firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'contactus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await initializeDateFormatting();
   runApp(const MyApp());
@@ -19,29 +18,31 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Body Contest',
       debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          fontFamily: 'Pretendard',
-          scaffoldBackgroundColor: const Color(0xFF121212), // 다크 배경
-          colorScheme: ColorScheme.dark(
-            primary: const Color(0xFFD4AF37), // 골드
-            secondary: Colors.redAccent,      // 강조색
-          ),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.black,
-            foregroundColor: Colors.white,
-          ),
-          textTheme: const TextTheme(
-            bodyLarge: TextStyle(color: Colors.white),
-            bodyMedium: TextStyle(color: Colors.white70),
-          ),
+      theme: ThemeData(
+        fontFamily: 'Pretendard',
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        // 다크 배경
+        colorScheme: ColorScheme.dark(
+          primary: const Color(0xFFD4AF37), // 골드
+          secondary: Colors.redAccent, // 강조색
         ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Colors.white),
+          bodyMedium: TextStyle(color: Colors.white70),
+        ),
+      ),
 
-        home: const ContestYearPage(),
+      home: const ContestYearPage(),
     );
   }
 }
@@ -63,12 +64,55 @@ class _ContestYearPageState extends State<ContestYearPage> {
   void initState() {
     super.initState();
     _loadEvents();
+    //saveWNBFAsiaEvents(); // WNBF 아시아 대회 데이터 저장
   }
+
+  // Future<void> saveWNBFAsiaEvents() async {
+  //   List<Map<String, dynamic>> contests = [
+  //     {
+  //       "title": "WNBF World Championships - Pro Qualifier & Pro Show",
+  //       "date": DateTime(2025, 11, 22),
+  //       "region": "미국",
+  //       "venue": "로스앤젤레스",
+  //     },
+  //   ];
+  //   // 🔹 월별로 그룹화
+  //   Map<int, List<Map<String, dynamic>>> monthGrouped = {};
+  //   for (var comp in contests) {
+  //     int month = (comp["date"] as DateTime).month;
+  //     monthGrouped.putIfAbsent(month, () => []);
+  //     monthGrouped[month]!.add(comp);
+  //   }
+  //
+  //   // 🔹 Firestore에 기존 데이터 유지 + 새 데이터 추가
+  //   for (var entry in monthGrouped.entries) {
+  //     int month = entry.key;
+  //
+  //     List<Map<String, dynamic>> monthContests = entry.value.map((comp) {
+  //       return {
+  //         '날짜': DateFormat('yyyy년 M월 d일').format(comp["date"] as DateTime),
+  //         '대회이름': comp["title"],
+  //         '대회지역': comp["region"],
+  //         '대회장소': comp["venue"],
+  //       };
+  //     }).toList();
+  //
+  //     await FirebaseFirestore.instance
+  //         .collection('contest-2025')
+  //         .doc("${month}월")
+  //         .set({
+  //       "대회목록": FieldValue.arrayUnion(monthContests)
+  //     }, SetOptions(merge: true));
+  //
+  //     print("✅ ${month}월 데이터 기존값 유지 + 새 값 추가 완료");
+  //   }
+  // }
 
   // Firestore에서 대회 날짜 불러오기
   Future<void> _loadEvents() async {
-    final snapshot =
-    await FirebaseFirestore.instance.collection('contest-2025').get();
+    final snapshot = await FirebaseFirestore.instance
+        .collection('contest-2025')
+        .get();
 
     Map<DateTime, List<String>> eventMap = {};
 
@@ -141,7 +185,8 @@ class _ContestYearPageState extends State<ContestYearPage> {
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
-                      overflow: TextOverflow.ellipsis,
+                      softWrap: true,
+                      //overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -191,15 +236,18 @@ class _ContestYearPageState extends State<ContestYearPage> {
               headerStyle: const HeaderStyle(
                 titleCentered: true,
                 formatButtonVisible: false,
-                titleTextStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                titleTextStyle: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
                 leftChevronIcon: Icon(Icons.chevron_left, color: Colors.white),
-                rightChevronIcon: Icon(Icons.chevron_right, color: Colors.white),
+                rightChevronIcon: Icon(
+                  Icons.chevron_right,
+                  color: Colors.white,
+                ),
               ),
-
-
             ),
           ),
-
 
           const Divider(),
 
@@ -208,7 +256,7 @@ class _ContestYearPageState extends State<ContestYearPage> {
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: GridView.builder(
-                itemCount: 12 - 1, // 2월~12월
+                itemCount: 12, // 2월~12월
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 4,
                   crossAxisSpacing: 12,
@@ -216,7 +264,7 @@ class _ContestYearPageState extends State<ContestYearPage> {
                   childAspectRatio: 1,
                 ),
                 itemBuilder: (context, index) {
-                  final month = "${index + 2}월";
+                  final month = "${index + 1}월";
                   final List<List<Color>> gradients = [
                     [const Color(0xFFD4AF37), const Color(0xFFFFD700)],
                   ];
@@ -228,7 +276,8 @@ class _ContestYearPageState extends State<ContestYearPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => MonthContestPage(monthName: month),
+                          builder: (context) =>
+                              MonthContestPage(monthName: month),
                         ),
                       );
                     },
@@ -252,8 +301,11 @@ class _ContestYearPageState extends State<ContestYearPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.calendar_month,
-                              size: 30, color: Colors.white),
+                          const Icon(
+                            Icons.calendar_month,
+                            size: 30,
+                            color: Colors.white,
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             month,
@@ -270,24 +322,34 @@ class _ContestYearPageState extends State<ContestYearPage> {
                 },
               ),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 }
 
-
 /// 월 상세 페이지 (해당 월 대회 리스트)
 class MonthContestPage extends StatelessWidget {
   final String monthName;
+
   const MonthContestPage({super.key, required this.monthName});
+
+  Future<void> _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      throw 'Could not launch $url';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("$monthName 대회", style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          "$monthName 대회",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
       ),
       body: FutureBuilder<DocumentSnapshot>(
@@ -323,95 +385,111 @@ class MonthContestPage extends StatelessWidget {
                 boxColor = Colors.grey.shade500; // 이미 지난 대회
               }
 
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    // 왼쪽 날짜 / D-Day 박스
-                    Container(
-                      width: 80,
-                      decoration: BoxDecoration(
-                        color: boxColor,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          bottomLeft: Radius.circular(16),
+              return GestureDetector(
+                onTap: () {
+                  final String? url = comp['url'];
+                  if (url != null && url.isNotEmpty) {
+                    _launchURL(url);
+                  }
+                },
+                child: Container(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // 왼쪽 날짜 / D-Day 박스
+                      Container(
+                        width: 80,
+                        decoration: BoxDecoration(
+                          color: boxColor,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            bottomLeft: Radius.circular(16),
+                          ),
                         ),
-                      ),
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            DateFormat('M월\nd일').format(date),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white,
-                              height: 1.2,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            dDay >= 0 ? "D-$dDay" : "종료",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // 오른쪽 대회 정보
-                    Expanded(
-                      child: Padding(
-                        padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.all(8),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              comp['대회이름'],
+                              DateFormat('M월\nd일').format(date),
                               style: const TextStyle(
-                                color: Colors.black87,
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.white,
+                                height: 1.2,
                               ),
+                              textAlign: TextAlign.center,
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.location_on,
-                                    size: 16, color: Colors.grey),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    "${comp['대회지역']} · ${comp['대회장소']}",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[700],
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(height: 8),
+                            Text(
+                              dDay >= 0 ? "D-$dDay" : "종료",
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    )
-                  ],
+                      // 오른쪽 대회 정보
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                comp['대회이름'],
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_on,
+                                    size: 16,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      "${comp['대회지역']} · ${comp['대회장소']}",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[700],
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
