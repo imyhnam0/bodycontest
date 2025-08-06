@@ -7,12 +7,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'contactus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+
+FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await initializeDateFormatting();
+  await analytics.logAppOpen();
   runApp(const MyApp());
 }
 
@@ -329,11 +333,17 @@ class _ContestYearPageState extends State<ContestYearPage> {
   }
 }
 
-/// 월 상세 페이지 (해당 월 대회 리스트)
-class MonthContestPage extends StatelessWidget {
+class MonthContestPage extends StatefulWidget {
   final String monthName;
 
   const MonthContestPage({super.key, required this.monthName});
+
+  @override
+  State<MonthContestPage> createState() => _MonthContestPageState();
+}
+
+class _MonthContestPageState extends State<MonthContestPage> {
+  String filterType = "전체"; // 전체 / 내츄럴 / 비내츄럴
 
   Future<void> _launchURL(String url) async {
     final Uri uri = Uri.parse(url);
@@ -347,7 +357,7 @@ class MonthContestPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "$monthName 대회",
+          "${widget.monthName} 대회",
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -355,7 +365,7 @@ class MonthContestPage extends StatelessWidget {
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance
             .collection('contest-2025')
-            .doc(monthName)
+            .doc(widget.monthName)
             .get(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -366,136 +376,192 @@ class MonthContestPage extends StatelessWidget {
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
-          final contests = List<Map<String, dynamic>>.from(data["대회목록"]);
+          final allContests = List<Map<String, dynamic>>.from(data["대회목록"]);
 
-          return ListView.builder(
-            itemCount: contests.length,
-            itemBuilder: (context, index) {
-              final comp = contests[index];
-              final dateStr = comp['날짜'];
-              final date = DateFormat('yyyy년 M월 d일').parse(dateStr);
-              final dDay = date.difference(DateTime.now()).inDays;
+          // ✅ 도핑 값 기반 필터링
+          final contests = allContests.where((comp) {
+            if (filterType == "전체") return true;
 
-              Color boxColor;
-              if (dDay <= 10 && dDay >= 0) {
-                boxColor = Colors.redAccent; // 10일 전
-              } else if (dDay > 0) {
-                boxColor = Colors.lightGreen; // 아직 남았지만 10일 전은 아님
-              } else {
-                boxColor = Colors.grey.shade500; // 이미 지난 대회
-              }
+            // 도핑 값 읽기 (없으면 null)
+            final doping = comp['도핑'];
 
-              return GestureDetector(
-                onTap: () {
-                  final String? url = comp['url'];
-                  if (url != null && url.isNotEmpty) {
-                    _launchURL(url);
-                  }
-                },
-                child: Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      // 왼쪽 날짜 / D-Day 박스
-                      Container(
-                        width: 80,
-                        decoration: BoxDecoration(
-                          color: boxColor,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            bottomLeft: Radius.circular(16),
-                          ),
+            // ✅ 도핑 값이 없으면 두 필터(내츄럴/비내츄럴) 모두 통과
+            if (doping == null) return true;
+
+            if (filterType == "내츄럴") return doping == true;
+            if (filterType == "비내츄럴") return doping == false;
+
+            return true;
+          }).toList();
+
+
+          return Column(
+            children: [
+              // ✅ 필터 버튼
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    FilterChip(
+                      label: const Text("전체"),
+                      selected: filterType == "전체",
+                      onSelected: (_) => setState(() => filterType = "전체"),
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: const Text("내츄럴"),
+                      selected: filterType == "내츄럴",
+                      onSelected: (_) => setState(() => filterType = "내츄럴"),
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: const Text("비내츄럴"),
+                      selected: filterType == "비내츄럴",
+                      onSelected: (_) =>
+                          setState(() => filterType = "비내츄럴"),
+                    ),
+                  ],
+                ),
+              ),
+
+              Expanded(
+                child: ListView.builder(
+                  itemCount: contests.length,
+                  itemBuilder: (context, index) {
+                    final comp = contests[index];
+                    final dateStr = comp['날짜'];
+                    final date =
+                    DateFormat('yyyy년 M월 d일').parse(dateStr);
+                    final dDay = date
+                        .difference(DateTime.now())
+                        .inDays;
+
+                    Color boxColor;
+                    if (dDay <= 10 && dDay >= 0) {
+                      boxColor = Colors.redAccent; // 10일 전
+                    } else if (dDay > 0) {
+                      boxColor = Colors.lightGreen; // 아직 남았지만 10일 전은 아님
+                    } else {
+                      boxColor = Colors.grey.shade500; // 이미 지난 대회
+                    }
+
+                    return GestureDetector(
+                      onTap: () {
+                        final String? url = comp['url'];
+                        if (url != null && url.isNotEmpty) {
+                          _launchURL(url);
+                        }
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
                         ),
-                        padding: const EdgeInsets.all(8),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              DateFormat('M월\nd일').format(date),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.white,
-                                height: 1.2,
-                              ),
-                              textAlign: TextAlign.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              dDay >= 0 ? "D-$dDay" : "종료",
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // 왼쪽 날짜 / D-Day 박스
+                            Container(
+                              width: 80,
+                              decoration: BoxDecoration(
+                                color: boxColor,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(16),
+                                  bottomLeft: Radius.circular(16),
+                                ),
+                              ),
+                              padding: const EdgeInsets.all(8),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    DateFormat('M월\nd일').format(date),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                      height: 1.2,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    dDay >= 0 ? "D-$dDay" : "종료",
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // 오른쪽 대회 정보
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      comp['대회이름'],
+                                      style: const TextStyle(
+                                        color: Colors.black87,
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on,
+                                          size: 16,
+                                          color: Colors.grey,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            "${comp['대회지역']} · ${comp['대회장소']}",
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey[700],
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      // 오른쪽 대회 정보
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                comp['대회이름'],
-                                style: const TextStyle(
-                                  color: Colors.black87,
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    size: 16,
-                                    color: Colors.grey,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      "${comp['대회지역']} · ${comp['대회장소']}",
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[700],
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+            ],
           );
         },
       ),
     );
   }
 }
+
